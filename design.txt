@@ -1,0 +1,17 @@
+Title: Machine Learning Car Tack
+
+Description: This is an app that will draw a racetrack for a car to travel around.
+A car will be created on the start point of the track and will begin teaching itself
+how to drive using deep Q learning.
+
+Objects:
+  Car:
+    Accelerate
+    Turn
+    get_points()
+  Screen App:
+    update()
+  NeuralNetwork:
+    calculate()
+  Track:
+    draw()
