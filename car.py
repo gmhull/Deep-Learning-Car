@@ -28,7 +28,7 @@ class Car:
 
     ALIVE = True
 
-    SIGHT_DISTANCE = 200
+    SIGHT_DISTANCE = 300
 
     def __init__(self, angle=0):
         self.angle = angle
@@ -99,21 +99,25 @@ class Car:
         self.SPACE_STATE = []
         for ray in self.rays:
             CLOSEST_WALL = self.SIGHT_DISTANCE
+            CLOSEST_POINT = None
             for wall in walls:
                 pt = ray.cast(self.x, self.y, self.angle, wall)
                 if pt:
                     dist = math.dist(pt, (self.x, self.y))
                     if dist < CLOSEST_WALL:
                         CLOSEST_WALL = dist
-                        # CLOSEST_POINT = pt
+                        CLOSEST_POINT = pt
             # if CLOSEST_WALL == self.SIGHT_DISTANCE:
             #     CLOSEST_POINT = [self.x+self.SIGHT_DISTANCE*math.sin(self.angle),
             #                      self.y+self.SIGHT_DISTANCE*math.cos(self.angle)]
 
-            ray.draw(self.x, self.y, self.angle, pt)
+            ray.draw(self.x, self.y, self.angle, CLOSEST_POINT)
             self.SPACE_STATE.append(CLOSEST_WALL / self.SIGHT_DISTANCE)
 
         return self.SPACE_STATE
+
+    def check_collision(self, walls):
+        pass
 
     def update_score(self):
         pass

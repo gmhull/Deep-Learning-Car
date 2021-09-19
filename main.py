@@ -3,13 +3,29 @@ from pyglet.window import key
 import car, track
 
 class GameScreen(pyglet.window.Window):
-    def draw_me(self):
-        pass
+    MANUAL = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.MANUAL:
+            self.car = car.ManualCar()
+        else:
+            self.car = car.AutoCar()
+
+        self.race_track = track.Track()
+
+    def on_draw(self):
+        self.clear()
+        self.car.draw_car()
+        self.car.look(self.race_track.walls)
+        self.race_track.draw_track()
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        print(x, y)
+
 
 def update(dt):
-    car.controls(keys)
-
-MANUAL = True
+    game_screen.car.controls(keys)
 
 if __name__ == "__main__":
     # Initialize the screen
@@ -17,24 +33,12 @@ if __name__ == "__main__":
     screen_width, screen_height = game_screen.get_size()
 
     # Initialize the car
-    if MANUAL:
-        car = car.ManualCar()
-    else:
-        car = car.AutoCar()
 
-    race_track = track.Track()
+
 
     # Track key presses
     keys = key.KeyStateHandler()
     game_screen.push_handlers(keys)
-
-    @game_screen.event
-    def on_draw():
-        game_screen.clear()
-        car.draw_car()
-        print(race_track.walls)
-        car.look(race_track.walls)
-        race_track.draw_track()
 
     pyglet.clock.schedule_interval(update, 1/120.0)
 
