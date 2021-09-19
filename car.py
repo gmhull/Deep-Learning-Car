@@ -1,6 +1,11 @@
 import pyglet, math
 from pyglet.window import key
 
+import ctypes
+user32 = ctypes.windll.user32
+SCREENSIZE = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+print(SCREENSIZE)
+
 class Car:
     # Car placement and size
     x = 100
@@ -23,12 +28,14 @@ class Car:
 
     ALIVE = True
 
-    def __init__(self, angle):
+    SIGHT_DISTANCE = 200
+
+    def __init__(self, angle=0):
         self.angle = angle
 
         self.rays = []
-        for i in range(6):
-            self.rays.append(Ray(angle=i/(2*math.pi)))
+        for i in range(-60, 61, 30):
+            self.rays.append(Ray(angle=i-90, max_length=self.SIGHT_DISTANCE))
 
     def get_vertices(self):
         hypot = math.hypot(self.WIDTH/2, self.HEIGHT/2)
@@ -36,10 +43,10 @@ class Car:
         theta = math.atan(self.WIDTH/self.HEIGHT)
         x_vertex_val = hypot*math.sin(angle+theta)
         y_vertex_val = hypot*math.cos(angle+theta)
-        self.vertices = ([int(self.x+hypot*math.sin(angle-theta)), int(self.y+hypot*math.cos(angle-theta))],
-                         [int(self.x+hypot*math.sin(angle+theta)), int(self.y+hypot*math.cos(angle+theta))],
-                         [int(self.x+hypot*math.sin(angle-theta+math.pi)), int(self.y+hypot*math.cos(angle-theta+math.pi))],
-                         [int(self.x+hypot*math.sin(angle+theta+math.pi)), int(self.y+hypot*math.cos(angle+theta+math.pi))])
+        self.vertices = ([self.x+hypot*math.sin(angle-theta), self.y+hypot*math.cos(angle-theta)],
+                         [self.x+hypot*math.sin(angle+theta), self.y+hypot*math.cos(angle+theta)],
+                         [self.x+hypot*math.sin(angle-theta+math.pi), self.y+hypot*math.cos(angle-theta+math.pi)],
+                         [self.x+hypot*math.sin(angle+theta+math.pi), self.y+hypot*math.cos(angle+theta+math.pi)])
 
     def move(self):
         # This controls the physics of the car
@@ -64,22 +71,22 @@ class Car:
             elif self.RIGHT:
                 self.ANGULAR_VEL -= self.TURN_SPEED * speed / (self.ACCELERATION * self.DRAG)
 
-        # self.check_bounds()
+        self.check_bounds()
 
     def check_bounds(self):
-        if self.x == 0:
-            self.x = self.get_size()[0]
-        elif self.x == self.get_size()[0]:
+        if self.x <= 0:
+            self.x = SCREENSIZE[0]
+        elif self.x >= SCREENSIZE[0]:
             self.x = 0
-        if self.y == 0:
-            self.y =self.get_size()[1]
-        elif self.y == self.get_size()[1]:
+        if self.y <= 0:
+            self.y =SCREENSIZE[1]
+        elif self.y >= SCREENSIZE[1]:
             self.y = 0
 
     def draw_car(self):
         self.get_vertices()
         pyglet.graphics.draw_indexed(4, pyglet.gl.GL_TRIANGLES, [0, 1, 2, 0, 2, 3],
-                                    ('v2i', (self.vertices[0][0], self.vertices[0][1],
+                                    ('v2f', (self.vertices[0][0], self.vertices[0][1],
                                              self.vertices[1][0], self.vertices[1][1],
                                              self.vertices[2][0], self.vertices[2][1],
                                              self.vertices[3][0], self.vertices[3][1])),
@@ -88,16 +95,32 @@ class Car:
                                              150, 0, 180,
                                              150, 0, 180)))
 
-    def look(self):
+    def look(self, walls):
+        self.SPACE_STATE = []
         for ray in self.rays:
-            ray.cast()
+            CLOSEST_WALL = self.SIGHT_DISTANCE
+            for wall in walls:
+                pt = ray.cast(self.x, self.y, self.angle, wall)
+                if pt:
+                    dist = math.dist(pt, (self.x, self.y))
+                    if dist < CLOSEST_WALL:
+                        CLOSEST_WALL = dist
+                        # CLOSEST_POINT = pt
+            # if CLOSEST_WALL == self.SIGHT_DISTANCE:
+            #     CLOSEST_POINT = [self.x+self.SIGHT_DISTANCE*math.sin(self.angle),
+            #                      self.y+self.SIGHT_DISTANCE*math.cos(self.angle)]
+
+            ray.draw(self.x, self.y, self.angle, pt)
+            self.SPACE_STATE.append(CLOSEST_WALL / self.SIGHT_DISTANCE)
+
+        return self.SPACE_STATE
 
     def update_score(self):
         pass
 
 
 class ManualCar(Car):
-    def __init__(self, angle):
+    def __init__(self, angle=0):
         super().__init__(angle)
 
     def controls(self, keys):
@@ -115,39 +138,58 @@ class ManualCar(Car):
             self.RIGHT = False
 
         self.move()
+
 
 class AutoCar(Car):
-    def __init__(self, angle):
+    def __init__(self, angle=0):
         super().__init__(angle)
 
     def controls(self, keys):
-        if keys[key.W]:
-            self.FORWARD = True
-        else:
-            self.FORWARD = False
-        if keys[key.A]:
-            self.LEFT = True
-        else:
-            self.LEFT = False
-        if keys[key.D]:
-            self.RIGHT = False
-        else:
-            self.RIGHT = True
+        pass
 
         self.move()
 
+
 class Ray:
-    length = 200
-    def __init__(self, angle):
+    def __init__(self, angle, max_length):
         self.offset_angle = angle
+        self.max_length = max_length
 
-    def cast(self, car_x, car_y, car_angle):
-        pass
+    def cast(self, car_x, car_y, car_angle, wall):
+        # If the two lines intersect, return the point of intersection.
+        angle = -math.radians(self.offset_angle+car_angle)
 
-    def draw(self, car_x, car_y, car_angle):
-        pyglet.graphics.draw_indexed(2, pyglet.gl.GL_TRIANGLES, [0, 1, 2, 0, 2, 3],
-                                    ('v2i', (x, y,
-                                             self.length*math.sin(self.offset_angle+car_angle),
-                                             self.length*math.cos(self.offset_angle+car_angle))),
-                                    ('c3B', (0, 200, 255,
-                                             0, 200, 255)))
+        x1, y1 = wall.a[0], wall.a[1]
+        x2, y2 = wall.b[0], wall.b[1]
+        x3, y3 = car_x, car_y
+        x4, y4 = car_x+self.max_length*math.sin(angle), car_y+self.max_length*math.cos(angle)
+
+        den = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
+        if den == 0:
+            return
+        t =  ((x1 - x3)*(y3 - y4) - (y1 - y3)*(x3 - x4)) / den
+        u = -((x1 - x2)*(y1 - y3) - (y1 - y2)*(x1 - x3)) / den
+        if t > 0 and t < 1 and u > 0 and u < 1:
+            pt = [0,0]
+            pt[0] = int(x1 + t * (x2 - x1))
+            pt[1] = int(y1 + t * (y2 - y1))
+            return pt
+        else:
+            return
+
+    def draw(self, car_x, car_y, car_angle, pt=None):
+        angle = -math.radians(self.offset_angle+car_angle)
+        if not pt:
+            end = [car_x+self.max_length*math.sin(angle), car_y+self.max_length*math.cos(angle)]
+            color = ('c3B', (0, 200, 255,
+                             0, 200, 255))
+        else:
+            end = pt
+            color = ('c3B', (255, 100, 55,
+                             255, 100, 55))
+
+
+        pyglet.graphics.draw(2, pyglet.gl.GL_LINES,
+                                    ('v2f', (car_x, car_y,
+                                             end[0], end[1])),
+                                    color)
