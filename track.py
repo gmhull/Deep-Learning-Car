@@ -55,7 +55,6 @@ for point in range(len(INNER_POINTS)):
     LINES.append([])
     LINES[-1].append(INNER_POINTS[point-1])
     LINES[-1].append(INNER_POINTS[point])
-print(LINES)
 
 class Track:
     def __init__(self):

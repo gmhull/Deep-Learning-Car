@@ -4,11 +4,10 @@ from pyglet.window import key
 import ctypes
 user32 = ctypes.windll.user32
 SCREENSIZE = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-print(SCREENSIZE)
 
 class Car:
     # Car placement and size
-    x = 100
+    x = 400
     y = 100
     WIDTH = 25
     HEIGHT = 35
@@ -117,7 +116,27 @@ class Car:
         return self.SPACE_STATE
 
     def check_collision(self, walls):
-        pass
+        for wall in walls:
+            for line in range(len(self.vertices)):
+                intersection = self.check_intersection(line_1=(wall.a, wall.b),
+                                                       line_2=(self.vertices[line-1],
+                                                               self.vertices[line]))
+                if intersection:
+                    return True
+
+    def check_intersection(self, line_1, line_2):
+        den = (line_1[0][0] - line_1[1][0])*(line_2[0][1] - line_2[1][1]) - (line_1[0][1] - line_1[1][1])*(line_2[0][0] - line_2[1][0])
+        if den == 0:
+            return
+        t =  ((line_1[0][0] - line_2[0][0])*(line_2[0][1] - line_2[1][1]) - (line_1[0][1] - line_2[0][1])*(line_2[0][0] - line_2[1][0])) / den
+        u = -((line_1[0][0] - line_1[1][0])*(line_1[0][1] - line_2[0][1]) - (line_1[0][1] - line_1[1][1])*(line_1[0][0] - line_2[0][0])) / den
+        if t > 0 and t < 1 and u > 0 and u < 1:
+            pt = [0,0]
+            pt[0] = int(line_1[0][0] + t * (line_1[1][0] - line_1[0][0]))
+            pt[1] = int(line_1[0][1] + t * (line_1[1][1] - line_1[0][1]))
+            return True
+        else:
+            return
 
     def update_score(self):
         pass
