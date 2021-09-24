@@ -10,10 +10,11 @@ class GameScreen(pyglet.window.Window):
         self.race_track = race_track
         self.car = car
 
-    # def on_mouse_press(self, x, y, button, modifiers):
-    #     print(x, y)
+    def on_mouse_press(self, x, y, button, modifiers):
+        print(x, y)
 
     def on_draw(self):
+        # if self.car == 'ManualCar':
         self.clear()
         # print(self.car_alive)
         self.race_track.draw_track()
@@ -25,7 +26,6 @@ class GameScreen(pyglet.window.Window):
 
 
 class Game:
-    MANUAL = True
     OBSERVATION_SPACE_VALUES = 5
     ACTION_SPACE_SIZE = 6
 
@@ -33,9 +33,15 @@ class Game:
     CRASH_PENALTY = 1000
     CHECKPOINT_REWARD = 100
 
+    MAX_EPISODES = 500
+    episode_step = 0
+
     game_screen = None
+    count = 0
 
     def __init__(self, screen=True):
+        self.MANUAL = screen
+
         self.create_car()
         self.race_track = track.Track()
 
@@ -66,12 +72,38 @@ class Game:
     def reset(self):
         del self.car
         self.create_car()
+        self.episode_step = 0
+
+        return self.car.look(self.race_track.walls)
 
     def update(self, dt):
         if self.game_screen.car_alive:
             self.game_screen.car.controls(self.keys)
         elif self.game_screen.car_alive == False:
             self.reset()
+
+    def step(self, action, training=False):
+        self.episode_step += 1
+        self.car.controls(action)
+        if self.car.check_collision(self.race_track.walls):
+            self.car_alive = False
+
+        if training:
+            if not self.car.ALIVE:
+                reward = -self.CRASH_PENALTY
+            elif self.car.update_score():
+                reward = self.CHECKPOINT_REWARD
+            else:
+                reward = -self.MOVE_PENALTY
+        else:
+            reward = 0
+
+        done = False
+        if self.car.ALIVE == False:
+            done = True
+        elif training == True and self.episode_step >= self.MAX_EPISODES:
+            done = True
+        return self.car.SPACE_STATE, reward, done
 
 
 if __name__ == "__main__":

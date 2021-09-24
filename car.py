@@ -29,6 +29,8 @@ class Car:
 
     SIGHT_DISTANCE = 300
 
+    point = (400, 100)
+
     def __init__(self, angle=0):
         self.angle = angle
 
@@ -106,9 +108,6 @@ class Car:
                     if dist < CLOSEST_WALL:
                         CLOSEST_WALL = dist
                         CLOSEST_POINT = pt
-            # if CLOSEST_WALL == self.SIGHT_DISTANCE:
-            #     CLOSEST_POINT = [self.x+self.SIGHT_DISTANCE*math.sin(self.angle),
-            #                      self.y+self.SIGHT_DISTANCE*math.cos(self.angle)]
 
             ray.draw(self.x, self.y, self.angle, CLOSEST_POINT)
             self.SPACE_STATE.append(CLOSEST_WALL / self.SIGHT_DISTANCE)
@@ -116,12 +115,14 @@ class Car:
         return self.SPACE_STATE
 
     def check_collision(self, walls):
+        self.get_vertices()
         for wall in walls:
             for line in range(len(self.vertices)):
                 intersection = self.check_intersection(line_1=(wall.a, wall.b),
                                                        line_2=(self.vertices[line-1],
                                                                self.vertices[line]))
                 if intersection:
+                    self.ALIVE = False
                     return True
 
     def check_intersection(self, line_1, line_2):
@@ -139,12 +140,19 @@ class Car:
             return
 
     def update_score(self):
-        pass
+        # self.point = (self.x, self.y)
+        if math.dist(self.point, (self.x, self.y)) >= 500:
+            self.point = (self.x, self.y)
+            return True
+
 
 
 class ManualCar(Car):
     def __init__(self, angle=0):
         super().__init__(angle)
+
+    def __str__(self):
+        return 'ManualCar'
 
     def controls(self, keys):
         if keys[key.W]:
@@ -164,11 +172,33 @@ class ManualCar(Car):
 
 
 class AutoCar(Car):
+    SPACE_STATE = []
+
     def __init__(self, angle=0):
         super().__init__(angle)
 
-    def controls(self, keys):
-        pass
+    def __str__(self):
+        return 'AutoCar'
+
+    def controls(self, action):
+        self.FORWARD = False
+        self.LEFT = False
+        self.RIGHT = False
+
+        if action == 1:
+            self.FORWARD = True
+        elif action == 2:
+            self.FORWARD = True
+            self.LEFT = True
+        elif action == 3:
+            self.FORWARD = True
+            self.RIGHT = True
+        elif action == 4:
+            self.LEFT = True
+        elif action == 5:
+            self.RIGHT = True
+        elif action == 6:
+            pass
 
         self.move()
 

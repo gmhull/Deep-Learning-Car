@@ -3,6 +3,7 @@
 import numpy as np
 import random
 from PIL import Image
+import ctypes
 import cv2
 import matplotlib.pyplot as plt
 import pickle
@@ -15,6 +16,7 @@ from collections import deque
 import os
 import track
 import car
+import main
 
 
 class NeuralNetwork:
@@ -132,6 +134,7 @@ class NeuralNetwork:
 
 def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     style.use('ggplot')
+    user32 = ctypes.windll.user32
     screen_width, screen_height = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
     epsilon = 1
@@ -140,14 +143,14 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     MODEL_NAME = "Car_Brain"
     MIN_REWARD = 1000
 
-    env = Game(screen_width, screen_height, 0)
+    env = main.Game(screen=False)
 
     ep_rewards = []
     aggr_ep_rewards = {'ep': [], 'avg': [], 'min': [], 'max': []}
 
-    random.seed(1)
-    np.random.seed(1)
-    tf.random.set_seed(1)
+    # random.seed(1)
+    # np.random.seed(1)
+    # tf.random.set_seed(1)
 
     agent = NeuralNetwork(env)
 
@@ -155,7 +158,6 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
         agent.model = model
 
     for episode in range(1, EPISODES+1):
-        # agent.tensorboard.step = episode
         episode_reward = 0
         step = 1
         current_state = env.reset()
@@ -206,4 +208,4 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     plt.show()
 
 if __name__ == '__main__':
-    training(300, 2)
+    training(1000, 10)
