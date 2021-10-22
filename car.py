@@ -7,45 +7,53 @@ user32 = ctypes.windll.user32
 SCREENSIZE = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 class Car:
-    # Car placement and size
-    x = 200
-    y = 200
-    WIDTH = 25
-    HEIGHT = 35
 
-    # Physics Controls
-    VEL_X, VEL_Y = 0, 0
-    ACCELERATION = 8
-    DRAG = 0.95
-    ANGULAR_VEL = 0
-    TURN_SPEED = 1.7
-    ANGULAR_DRAG = 0.8
-    MIN_SPEED = 2
+    def __init__(self, reward_gates, walls):
+        # Car placement and size
+        self.x = 400
+        self.y = 120
+        self.WIDTH = 25
+        self.HEIGHT = 35
 
-    # Movement controls
-    FORWARD = False
-    LEFT = False
-    RIGHT = False
+        # Physics Controls
+        self.VEL_X, self.VEL_Y = 0, 0
+        self.ACCELERATION = 8
+        self.DRAG = 0.95
+        self.ANGULAR_VEL = 0
+        self.TURN_SPEED = 1.7
+        self.ANGULAR_DRAG = 0.8
+        self.MIN_SPEED = 2
+        self.ANGLE = -90
 
-    ALIVE = True
-    REWARD_GATES = []
+        # Movement control booleans
+        self.FORWARD = False
+        self.LEFT = False
+        self.RIGHT = False
+        self.REVERSE = False
 
-    SIGHT_DISTANCE = 300
+        self.MAX_SIGHT_DISTANCE = 300
 
-    point = (400, 100)
+        self.alive = True
+        self.lifetime = 0
+        self.score = 0
 
-    def __init__(self, angle=0):
-        self.angle = angle
+        self.reward_gates = reward_gates
+        self.walls = walls
+        self.current_gate = 0
+        self.next_gate_angle = 0
+
+        self.color = (0, 200, 255,
+                      0, 200, 255,
+                      150, 0, 180,
+                      150, 0, 180)
 
         self.rays = []
-        self.CURRENT_GATE = 0
-
         for i in range(-60, 61, 30):
-            self.rays.append(Ray(angle=i-90, max_length=self.SIGHT_DISTANCE))
+            self.rays.append(Ray(angle=self.ANGLE+i, max_length=self.MAX_SIGHT_DISTANCE))
 
     def get_vertices(self):
         hypot = math.hypot(self.WIDTH/2, self.HEIGHT/2)
-        angle = -math.radians(self.angle-90)
+        angle = -math.radians(self.ANGLE)
         theta = math.atan(self.WIDTH/self.HEIGHT)
         x_vertex_val = hypot*math.sin(angle+theta)
         y_vertex_val = hypot*math.cos(angle+theta)
@@ -60,24 +68,22 @@ class Car:
         self.y += self.VEL_Y
         self.VEL_X *= self.DRAG
         self.VEL_Y *= self.DRAG
-        self.angle += self.ANGULAR_VEL
+        self.ANGLE += self.ANGULAR_VEL
         self.ANGULAR_VEL *= self.ANGULAR_DRAG
 
-        speed = math.sqrt(self.VEL_X**2 + self.VEL_Y**2)
+        self.speed = math.sqrt(self.VEL_X**2 + self.VEL_Y**2)
 
         if self.FORWARD:
-            angle_rad = math.radians(self.angle)
+            angle_rad = math.radians(self.ANGLE+90)
 
             self.VEL_X = math.cos(angle_rad) * self.ACCELERATION
             self.VEL_Y = math.sin(angle_rad) * self.ACCELERATION
 
-        if speed > 0:
+        if self.speed > 0:
             if self.LEFT:
-                self.ANGULAR_VEL += self.TURN_SPEED * speed / (self.ACCELERATION * self.DRAG)
+                self.ANGULAR_VEL += self.TURN_SPEED * self.speed / (self.ACCELERATION * self.DRAG)
             elif self.RIGHT:
-                self.ANGULAR_VEL -= self.TURN_SPEED * speed / (self.ACCELERATION * self.DRAG)
-
-        self.check_bounds()
+                self.ANGULAR_VEL -= self.TURN_SPEED * self.speed / (self.ACCELERATION * self.DRAG)
 
     def check_bounds(self):
         if self.x <= 0:
@@ -96,18 +102,18 @@ class Car:
                                              self.vertices[1][0], self.vertices[1][1],
                                              self.vertices[2][0], self.vertices[2][1],
                                              self.vertices[3][0], self.vertices[3][1])),
-                                    ('c3B', (0, 200, 255,
-                                             0, 200, 255,
-                                             150, 0, 180,
-                                             150, 0, 180)))
+                                    ('c3B', self.color))
 
-    def get_current_state(self, walls):
-        self.SPACE_STATE = []
+    def draw_reward_gate(self):
+        self.reward_gates[self.current_gate].draw()
+
+    def get_ray_dists(self):
+        ray_dists = []
         for ray in self.rays:
-            CLOSEST_WALL = self.SIGHT_DISTANCE
+            CLOSEST_WALL = self.MAX_SIGHT_DISTANCE
             CLOSEST_POINT = None
-            for wall in walls:
-                pt = ray.cast(self.x, self.y, self.angle, wall)
+            for wall in self.walls:
+                pt = ray.cast(self.x, self.y, self.ANGLE, wall)
                 if pt:
                     dist = math.dist(pt, (self.x, self.y))
                     if dist < CLOSEST_WALL:
@@ -115,22 +121,32 @@ class Car:
                         CLOSEST_POINT = pt
 
             # ray.draw(self.x, self.y, self.angle, CLOSEST_POINT)
-            norm_dist = round(CLOSEST_WALL / (self.SIGHT_DISTANCE * 2), 1)
-            self.SPACE_STATE.append(norm_dist * 2)
+            norm_dist = round(CLOSEST_WALL / (self.MAX_SIGHT_DISTANCE * 2), 1)*2
+            ray_dists.append(norm_dist)
 
+        return ray_dists
 
-        next_gate = self.REWARD_GATES[self.CURRENT_GATE]
-        angle = -math.radians(self.angle)
+    def get_next_checkpoint_angle(self):
+        next_gate = self.reward_gates[self.current_gate]
+        angle = -math.radians(self.ANGLE)
         numerator = ((next_gate.center[0] - self.x) * (math.sin(angle) - self.x) + (next_gate.center[1] - self.y) * (math.cos(angle) - self.y))
         denomenator = math.sqrt((next_gate.center[0] - self.x)**2 + (next_gate.center[1] - self.y)**2) * math.sqrt((math.sin(angle) - self.x)**2 + (math.cos(angle) - self.y)**2)
-        next_gate_angle = -math.acos(numerator / denomenator)
-        self.SPACE_STATE.append(round(next_gate_angle, 2))
+        self.next_gate_angle = -math.acos(numerator / denomenator)
 
+        return round(self.next_gate_angle, 2)
+
+    def draw_next_check_dir(self):
+        angle = -math.radians(self.ANGLE)
         pyglet.graphics.draw(2, pyglet.gl.GL_LINES,
                                     ('v2f', (self.x, self.y,
-                                             self.x+100*math.sin(3.1415/2+angle+next_gate_angle), self.y+100*math.cos(3.1415/2+angle+next_gate_angle))),
-                                    ('c3B', (255, 100, 55,
-                                                     255, 100, 55)))
+                                             self.x+100*math.sin(angle-self.next_gate_angle), self.y+100*math.cos(angle-self.next_gate_angle))),
+                                    ('c3B', (255, 0, 0,
+                                             255, 0, 0)))
+
+    def get_current_state(self):
+        self.SPACE_STATE = self.get_ray_dists()
+        self.SPACE_STATE.append(round(self.speed, 1))
+        self.SPACE_STATE.append(self.get_next_checkpoint_angle())
 
         return self.SPACE_STATE
 
@@ -138,12 +154,13 @@ class Car:
         self.get_vertices()
         for wall in walls:
             for line in range(len(self.vertices)):
-                intersection = self.check_intersection(line_1=(wall.a, wall.b),
+                intersection = self.check_intersection(line_1=([wall.x1, wall.y1],
+                                                               [wall.x2, wall.y2]),
                                                        line_2=(self.vertices[line-1],
                                                                self.vertices[line]))
-                # if intersection:
-                #     self.ALIVE = False
-                #     return True
+                if intersection:
+                    return True
+        return False
 
     def check_intersection(self, line_1, line_2):
         den = (line_1[0][0] - line_1[1][0])*(line_2[0][1] - line_2[1][1]) - (line_1[0][1] - line_1[1][1])*(line_2[0][0] - line_2[1][0])
@@ -160,16 +177,64 @@ class Car:
             return
 
     def update_score(self):
+        # Only need to check for the front bumper
         for line in range(len(self.vertices)):
-            if self.check_intersection(line_1=(self.REWARD_GATES[self.CURRENT_GATE].a, self.REWARD_GATES[self.CURRENT_GATE].b),
+            if self.check_intersection(line_1=((self.reward_gates[self.current_gate].x1, self.reward_gates[self.current_gate].y1),
+                                               (self.reward_gates[self.current_gate].x2, self.reward_gates[self.current_gate].y2)),
                                        line_2=(self.vertices[line-1],
                                                self.vertices[line])):
-                self.CURRENT_GATE +=1
-                if self.CURRENT_GATE > len(self.REWARD_GATES):
-                    self.CURRENT_GATE = 0
+
+                self.reward_gates[self.current_gate].active = False
+                self.current_gate +=1
+                self.score += 1
+
+                if self.score % len(self.reward_gates) == 0:
+                    self.current_gate = 0
 
                 return True
         return False
+
+    def reset(self):
+        self.x = 200
+        self.y = 200
+        self.VEL_X, self.VEL_Y = 0, 0
+        self.ANGULAR_VEL = 0
+        self.ANGLE = -90
+
+        self.FORWARD = False
+        self.LEFT = False
+        self.RIGHT = False
+        self.REVERSE = False
+
+        self.alive = True
+        self.lifetime = 0
+        self.score = 0
+        self.current_gate = 0
+        for gate in self.reward_gates:
+            gate.active == True
+
+    def update(self, keys):
+        self.controls(keys)
+        self.move()
+        self.check_bounds()
+        self.update_score()
+        self.lifetime += 1
+        g = self.get_next_checkpoint_angle()
+
+        # if self.check_collision(self.walls):
+        #     self.alive = False
+            # print(self.score)
+            # self.reset()
+
+    # def get_reward(self):
+    #     if not self.car.alive:
+    #         reward = -self.CRASH_PENALTY
+    #     elif self.car.update_score():
+    #         reward = self.CHECKPOINT_REWARD
+    #     else:
+    #         reward = -self.MOVE_PENALTY
+    #
+    #     return reward
 
 
 class ManualCar(Car):
@@ -191,8 +256,6 @@ class ManualCar(Car):
             self.RIGHT = True
         else:
             self.RIGHT = False
-
-        self.move()
 
 
 class AutoCar(Car):
@@ -216,19 +279,11 @@ class AutoCar(Car):
             self.FORWARD = True
             self.RIGHT = True
         elif action == 4:
-            if self.VEL_X <= self.MIN_SPEED and self.VEL_Y <= self.MIN_SPEED:
-                self.FORWARD = True
             self.LEFT = True
         elif action == 5:
-            if self.VEL_X <= self.MIN_SPEED and self.VEL_Y <= self.MIN_SPEED:
-                self.FORWARD = True
             self.RIGHT = True
         elif action == 6:
-            if self.VEL_X <= self.MIN_SPEED and self.VEL_Y <= self.MIN_SPEED:
-                self.FORWARD = True
             pass
-
-        self.move()
 
 
 class Ray:
