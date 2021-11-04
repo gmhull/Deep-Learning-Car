@@ -4,9 +4,6 @@ import car
 
 
 class Game:
-    OBSERVATION_SPACE_VALUES = 5
-    ACTION_SPACE_SIZE = 6
-
     def __init__(self, manual=True):
         self.MANUAL = manual
 
@@ -79,10 +76,10 @@ class Game:
         self.reward_gates.append(RewardGate(1250,715,1220,830))
         self.reward_gates.append(RewardGate(1175,700,980,660))
         self.reward_gates.append(RewardGate(1060,525,1200,500))
-        self.reward_gates.append(RewardGate(1010,400,1160,270))
-        self.reward_gates.append(RewardGate(820,400,820,280))
-        self.reward_gates.append(RewardGate(630,410,550,315))
-        self.reward_gates.append(RewardGate(560,470,390,490))
+        self.reward_gates.append(RewardGate(1160,270,1010,400))
+        self.reward_gates.append(RewardGate(820,280,820,400))
+        self.reward_gates.append(RewardGate(550,315,630,410))
+        self.reward_gates.append(RewardGate(390,490,560,470))
         self.reward_gates.append(RewardGate(480,640,650,720))
         self.reward_gates.append(RewardGate(375,690,400,800))
         self.reward_gates.append(RewardGate(180,630,70,700))
@@ -102,7 +99,7 @@ class Game:
         self.wall_batch.draw()
 
     def reset(self):
-        self.car.reset()
+        return self.car.reset()
 
     def make_action(self):
         pass

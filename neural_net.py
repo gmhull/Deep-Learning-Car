@@ -11,11 +11,9 @@ import time
 from matplotlib import style
 import tensorflow as tf
 from keras.layers import *
-from keras.callbacks import TensorBoard
+# from keras.callbacks import TensorBoard
 from collections import deque
 import os
-import track
-import car
 import main
 
 
@@ -83,6 +81,7 @@ class NeuralNetwork:
         minibatch = random.sample(self.replay_memory, self.MINIBATCH_SIZE)
 
         # Get current states from minibatch, then query NN model for Q values
+        # print([transition[0] for transition in minibatch])
         current_states = np.array([transition[0] for transition in minibatch])
         current_qs_list = self.model.predict(current_states)
 
@@ -143,7 +142,7 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     MODEL_NAME = "Car_Brain"
     MIN_REWARD = 1000
 
-    env = main.Game(screen=False, manual=False)
+    env = main.TrainingAgent()
 
     ep_rewards = []
     aggr_ep_rewards = {'ep': [], 'avg': [], 'min': [], 'max': []}
@@ -207,7 +206,7 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     plt.legend(loc=4)
     plt.show()
 
-if __name__ == '__main__':
+def get_model():
     try:
         model = tf.keras.models.load_model('models\\'+os.listdir('models\\')[0])
         print('models\\'+os.listdir('models\\')[0])
@@ -216,4 +215,6 @@ if __name__ == '__main__':
         model = False
         print('you messed up')
 
+if __name__ == '__main__':
+    model = get_model()
     training(1000, 100, model=model)

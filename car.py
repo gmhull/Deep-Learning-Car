@@ -24,6 +24,7 @@ class Car:
         self.ANGULAR_DRAG = 0.8
         self.MIN_SPEED = 2
         self.ANGLE = -90
+        self.speed = 0
 
         # Movement control booleans
         self.FORWARD = False
@@ -50,6 +51,8 @@ class Car:
         self.rays = []
         for i in range(-60, 61, 30):
             self.rays.append(Ray(angle=self.ANGLE+i, max_length=self.MAX_SIGHT_DISTANCE))
+
+        self.SPACE_STATE = self.get_ray_dists()
 
     def get_vertices(self):
         hypot = math.hypot(self.WIDTH/2, self.HEIGHT/2)
@@ -79,7 +82,7 @@ class Car:
             self.VEL_X = math.cos(angle_rad) * self.ACCELERATION
             self.VEL_Y = math.sin(angle_rad) * self.ACCELERATION
 
-        if self.speed > 0:
+        if self.speed > 0.5:
             if self.LEFT:
                 self.ANGULAR_VEL += self.TURN_SPEED * self.speed / (self.ACCELERATION * self.DRAG)
             elif self.RIGHT:
@@ -111,43 +114,74 @@ class Car:
         ray_dists = []
         for ray in self.rays:
             CLOSEST_WALL = self.MAX_SIGHT_DISTANCE
-            CLOSEST_POINT = None
+            # CLOSEST_POINT = None
             for wall in self.walls:
                 pt = ray.cast(self.x, self.y, self.ANGLE, wall)
                 if pt:
                     dist = math.dist(pt, (self.x, self.y))
                     if dist < CLOSEST_WALL:
                         CLOSEST_WALL = dist
-                        CLOSEST_POINT = pt
+                        # CLOSEST_POINT = pt
 
             # ray.draw(self.x, self.y, self.angle, CLOSEST_POINT)
             norm_dist = round(CLOSEST_WALL / (self.MAX_SIGHT_DISTANCE * 2), 1)*2
             ray_dists.append(norm_dist)
-
         return ray_dists
 
     def get_next_checkpoint_angle(self):
         next_gate = self.reward_gates[self.current_gate]
         angle = -math.radians(self.ANGLE)
-        numerator = ((next_gate.center[0] - self.x) * (math.sin(angle) - self.x) + (next_gate.center[1] - self.y) * (math.cos(angle) - self.y))
-        denomenator = math.sqrt((next_gate.center[0] - self.x)**2 + (next_gate.center[1] - self.y)**2) * math.sqrt((math.sin(angle) - self.x)**2 + (math.cos(angle) - self.y)**2)
-        self.next_gate_angle = -math.acos(numerator / denomenator)
 
-        return round(self.next_gate_angle, 2)
+        line_1 = ((self.x, self.y), (next_gate.center[0], next_gate.center[1]))
+        line_2 = ((self.x, self.y), (self.x+100*math.sin(angle), self.y+100*math.cos(angle)))
+        line_3 = ((next_gate.center[0], next_gate.center[1]), (self.x+100*math.sin(angle), self.y+100*math.cos(angle)))
+
+        numerator = math.dist(line_1[0], line_1[1])**2 + math.dist(line_2[0], line_2[1])**2 - math.dist(line_3[0], line_3[1])**2
+        denomenator = 2*math.dist(line_1[0], line_1[1])*math.dist(line_2[0], line_2[1])
+
+        checkpoint_angle = -round(math.acos(numerator / denomenator), 2)
+        reward_angle_dir = self.reward_angle_dir(line_2, next_gate)
+
+        if reward_angle_dir:
+            self.next_gate_angle = checkpoint_angle #Change to left/right depending on which side the gate is on
+        else:
+            self.next_gate_angle = -checkpoint_angle
+
+        return self.next_gate_angle
+
+    def reward_angle_dir(self, car_dir_line, next_gate):
+        line_1 = car_dir_line
+        line_2 = ((next_gate.x1, next_gate.y1), next_gate.center)
+        den = (line_1[0][0] - line_1[1][0])*(line_2[0][1] - line_2[1][1]) - (line_1[0][1] - line_1[1][1])*(line_2[0][0] - line_2[1][0])
+        if den == 0:
+            return
+        t =  ((line_1[0][0] - line_2[0][0])*(line_2[0][1] - line_2[1][1]) - (line_1[0][1] - line_2[0][1])*(line_2[0][0] - line_2[1][0])) / den
+        u = -((line_1[0][0] - line_1[1][0])*(line_1[0][1] - line_2[0][1]) - (line_1[0][1] - line_1[1][1])*(line_1[0][0] - line_2[0][0])) / den
+        if t > 0 and u > 0 and u > 1: #t < 0 and t > 1 and
+            pt = [0,0]
+            pt[0] = int(line_1[0][0] + t * (line_1[1][0] - line_1[0][0]))
+            pt[1] = int(line_1[0][1] + t * (line_1[1][1] - line_1[0][1]))
+            return True
+        elif t < 0 and u > 0 and u > 1:
+            return False
+        elif t < 0:
+            return True
+        elif t > 0:
+            return False
 
     def draw_next_check_dir(self):
         angle = -math.radians(self.ANGLE)
         pyglet.graphics.draw(2, pyglet.gl.GL_LINES,
                                     ('v2f', (self.x, self.y,
-                                             self.x+100*math.sin(angle-self.next_gate_angle), self.y+100*math.cos(angle-self.next_gate_angle))),
+                                             self.x+100*math.sin(angle+self.next_gate_angle), self.y+100*math.cos(angle+self.next_gate_angle))),
                                     ('c3B', (255, 0, 0,
                                              255, 0, 0)))
 
     def get_current_state(self):
-        self.SPACE_STATE = self.get_ray_dists()
-        self.SPACE_STATE.append(round(self.speed, 1))
-        self.SPACE_STATE.append(self.get_next_checkpoint_angle())
-
+        self.SPACE_STATE = self.get_ray_dists()                     # Add the 5 ray distances to the space state
+        self.SPACE_STATE.append(round(self.speed, 1))               # Add the current speed to the space state
+        self.SPACE_STATE.append(self.get_next_checkpoint_angle())   # Add the next checkpoint angle to the space state
+        # if self.SPACE_STATE == None:
         return self.SPACE_STATE
 
     def check_collision(self, walls):
@@ -195,11 +229,12 @@ class Car:
         return False
 
     def reset(self):
-        self.x = 200
-        self.y = 200
+        self.x = 400
+        self.y = 120
         self.VEL_X, self.VEL_Y = 0, 0
         self.ANGULAR_VEL = 0
         self.ANGLE = -90
+        self.speed = 0
 
         self.FORWARD = False
         self.LEFT = False
@@ -213,28 +248,7 @@ class Car:
         for gate in self.reward_gates:
             gate.active == True
 
-    def update(self, keys):
-        self.controls(keys)
-        self.move()
-        self.check_bounds()
-        self.update_score()
-        self.lifetime += 1
-        g = self.get_next_checkpoint_angle()
-
-        # if self.check_collision(self.walls):
-        #     self.alive = False
-            # print(self.score)
-            # self.reset()
-
-    # def get_reward(self):
-    #     if not self.car.alive:
-    #         reward = -self.CRASH_PENALTY
-    #     elif self.car.update_score():
-    #         reward = self.CHECKPOINT_REWARD
-    #     else:
-    #         reward = -self.MOVE_PENALTY
-    #
-    #     return reward
+        return self.get_current_state()
 
 
 class ManualCar(Car):
@@ -257,10 +271,21 @@ class ManualCar(Car):
         else:
             self.RIGHT = False
 
+    def update(self, keys):
+        self.controls(keys)
+        self.move()
+        self.check_bounds()
+        self.update_score()
+        self.lifetime += 1
+        g = self.get_next_checkpoint_angle()
+
+        if self.check_collision(self.walls):
+            self.alive = False
+            # print(self.score)
+            self.reset()
+
 
 class AutoCar(Car):
-    SPACE_STATE = []
-    AUTO = True
 
     def __str__(self):
         return 'AutoCar'
@@ -285,6 +310,19 @@ class AutoCar(Car):
         elif action == 6:
             pass
 
+    def update(self, action):
+        self.controls(action)
+        self.move()
+        self.check_bounds()
+        self.get_current_state()
+        # self.update_score()
+        # self.lifetime += 1
+
+        if self.check_collision(self.walls):
+            self.alive = False
+            # print(self.score)
+            self.reset()
+
 
 class Ray:
     def __init__(self, angle, max_length):
@@ -295,8 +333,8 @@ class Ray:
         # If the two lines intersect, return the point of intersection.
         angle = -math.radians(self.offset_angle+car_angle)
 
-        x1, y1 = wall.a[0], wall.a[1]
-        x2, y2 = wall.b[0], wall.b[1]
+        x1, y1 = wall.x1, wall.y1
+        x2, y2 = wall.x2, wall.y2
         x3, y3 = car_x, car_y
         x4, y4 = car_x+self.max_length*math.sin(angle), car_y+self.max_length*math.cos(angle)
 
