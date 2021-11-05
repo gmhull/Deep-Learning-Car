@@ -11,7 +11,7 @@ class Car:
     def __init__(self, reward_gates, walls):
         # Car placement and size
         self.x = 400
-        self.y = 120
+        self.y = 100
         self.WIDTH = 25
         self.HEIGHT = 35
 
@@ -23,7 +23,7 @@ class Car:
         self.TURN_SPEED = 1.7
         self.ANGULAR_DRAG = 0.8
         self.MIN_SPEED = 2
-        self.ANGLE = -90
+        self.ANGLE = -110
         self.speed = 0
 
         # Movement control booleans
@@ -40,7 +40,7 @@ class Car:
 
         self.reward_gates = reward_gates
         self.walls = walls
-        self.current_gate = 0
+        self.current_gate = 20
         self.next_gate_angle = 0
 
         self.color = (0, 200, 255,
@@ -179,9 +179,9 @@ class Car:
 
     def get_current_state(self):
         self.SPACE_STATE = self.get_ray_dists()                     # Add the 5 ray distances to the space state
-        self.SPACE_STATE.append(round(self.speed, 1))               # Add the current speed to the space state
+        self.SPACE_STATE.append(round(self.speed/7.6, 1))               # Add the current speed to the space state
         self.SPACE_STATE.append(self.get_next_checkpoint_angle())   # Add the next checkpoint angle to the space state
-        # if self.SPACE_STATE == None:
+
         return self.SPACE_STATE
 
     def check_collision(self, walls):
@@ -219,21 +219,23 @@ class Car:
                                                self.vertices[line])):
 
                 self.reward_gates[self.current_gate].active = False
-                self.current_gate +=1
-                self.score += 1
 
-                if self.score % len(self.reward_gates) == 0:
+                if self.current_gate == len(self.reward_gates)-1:
                     self.current_gate = 0
+                else:
+                    self.current_gate +=1
+
+                self.score += 1
 
                 return True
         return False
 
     def reset(self):
         self.x = 400
-        self.y = 120
+        self.y = 100
         self.VEL_X, self.VEL_Y = 0, 0
         self.ANGULAR_VEL = 0
-        self.ANGLE = -90
+        self.ANGLE = -110
         self.speed = 0
 
         self.FORWARD = False
@@ -244,7 +246,7 @@ class Car:
         self.alive = True
         self.lifetime = 0
         self.score = 0
-        self.current_gate = 0
+        self.current_gate = 20
         for gate in self.reward_gates:
             gate.active == True
 
@@ -277,7 +279,7 @@ class ManualCar(Car):
         self.check_bounds()
         self.update_score()
         self.lifetime += 1
-        g = self.get_next_checkpoint_angle()
+        # g = self.get_next_checkpoint_angle()
 
         if self.check_collision(self.walls):
             self.alive = False
@@ -310,18 +312,17 @@ class AutoCar(Car):
         elif action == 6:
             pass
 
-    def update(self, action):
+    def update(self, action, training=False):
         self.controls(action)
         self.move()
         self.check_bounds()
         self.get_current_state()
         # self.update_score()
-        # self.lifetime += 1
 
         if self.check_collision(self.walls):
             self.alive = False
-            # print(self.score)
-            self.reset()
+            if not training:
+                self.reset()
 
 
 class Ray:

@@ -137,7 +137,7 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     screen_width, screen_height = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
     epsilon = 1
-    EPS_DECAY = 0.9975
+    EPS_DECAY = 0.9985
     MIN_EPSILON = 0.001
     MODEL_NAME = "Car_Brain"
     MIN_REWARD = 1000
@@ -169,7 +169,6 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
                 action = np.random.randint(0, env.ACTION_SPACE_SIZE)
 
             new_state, reward, done = env.step(action, training=True)
-
             episode_reward += reward
 
             agent.update_replay_memory((current_state, action, reward, new_state, done))
@@ -189,7 +188,7 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
             aggr_ep_rewards['avg'].append(average_reward)
             aggr_ep_rewards['min'].append(min_reward)
             aggr_ep_rewards['max'].append(max_reward)
-            print(f'Episode: {episode:>5d}, average reward: {average_reward:>4.1f}, current epsilon: {epsilon:>1.2f}, Min: {min_reward}, Max: {max_reward}')
+            print(f'Episode: {episode:>5d}, average reward: {average_reward:>4.1f}, current epsilon: {epsilon:>1.2f}, Min: {min_reward:>1.2f}, Max: {max_reward:>1.2f}')
 
             if min_reward > MIN_REWARD or episode == EPISODES:
                 agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
@@ -217,4 +216,4 @@ def get_model():
 
 if __name__ == '__main__':
     model = get_model()
-    training(1000, 100, model=model)
+    training(2500, 50, model=model)

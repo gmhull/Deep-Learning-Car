@@ -2,7 +2,7 @@ import pyglet
 from pyglet.window import key
 import numpy as np
 # import tensorflow as tf
-import os
+import os, math
 import car, game
 import neural_net
 
@@ -30,6 +30,8 @@ class GameScreen(pyglet.window.Window):
         self.game.car.draw_car()
         for wall in self.game.walls:
             wall.draw()
+        # for r in self.game.reward_gates:
+        #     r.draw()
         self.game.car.draw_reward_gate()
         # self.game.car.draw_next_check_dir()
 
@@ -57,7 +59,7 @@ class TrainingAgent:
     CRASH_PENALTY = 1000
     CHECKPOINT_REWARD = 100
 
-    MAX_EPISODES = 600
+    MAX_EPISODES = 500
     episode_step = 0
 
     def __init__(self):
@@ -78,7 +80,7 @@ class TrainingAgent:
 
     def step(self, action, training=False):
         self.episode_step += 1
-        self.game.car.update(action)
+        self.game.car.update(action, training)
 
         done = False
         if self.game.car.alive == False:
@@ -113,7 +115,9 @@ class TrainingAgent:
         elif self.game.car.update_score():
             reward = self.CHECKPOINT_REWARD
         else:
-            reward = -self.MOVE_PENALTY
+            reward = -self.MOVE_PENALTY * (1.5-round(self.game.car.speed/7.6, 1))
+
+        reward -= abs(self.game.car.next_gate_angle)
 
         return reward
 
@@ -135,5 +139,5 @@ def play():
 
 
 if __name__ == "__main__":
-    # test()
-    play()
+    test()
+    # play()
