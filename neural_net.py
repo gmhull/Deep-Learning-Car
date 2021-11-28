@@ -11,7 +11,6 @@ import time
 from matplotlib import style
 import tensorflow as tf
 from keras.layers import *
-# from keras.callbacks import TensorBoard
 from collections import deque
 import os
 import main
@@ -25,13 +24,18 @@ class NeuralNetwork:
     DISCOUNT = 0.99
     UPDATE_TARGET_EVERY = 5
 
-    def __init__(self, env):
+    def __init__(self, env, model=None):
         self.env = env
 
         self.learning_rate = 0.001
 
-        # Create the target model. What we predict against each step
-        self.model = self.create_model()
+        if not model:
+            print('Howdy')
+            # Create the target model. What we predict against each step
+            self.model = self.create_model()
+        else:
+            print("hi")
+            self.model = model
 
         # Create the target model. What we predict against each step
         self.target_model = self.create_model()
@@ -42,6 +46,8 @@ class NeuralNetwork:
         # self.tensorboard = ModifiedTensorBoard(log_dir=f'logs/{MODEL_NAME}-{int(time.time())}')
 
         self.target_update_counter = 0
+
+
 
     def create_conv_model(self):
         model = tf.keras.models.Sequential()
@@ -137,12 +143,12 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     screen_width, screen_height = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
     epsilon = 1
-    EPS_DECAY = 0.9985
+    EPS_DECAY = 0.995
     MIN_EPSILON = 0.001
     MODEL_NAME = "Car_Brain"
-    MIN_REWARD = 1000
+    MIN_REWARD = 100
 
-    env = main.TrainingAgent()
+    env = main.TrainingAgent(model)
 
     ep_rewards = []
     aggr_ep_rewards = {'ep': [], 'avg': [], 'min': [], 'max': []}
@@ -151,10 +157,7 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
     # np.random.seed(1)
     # tf.random.set_seed(1)
 
-    agent = NeuralNetwork(env)
-
-    if model:
-        agent.model = model
+    agent = NeuralNetwork(env, model)
 
     for episode in range(1, EPISODES+1):
         episode_reward = 0
@@ -190,7 +193,7 @@ def training(EPISODES, AGGREGATE_STATS_EVERY, model=False):
             aggr_ep_rewards['max'].append(max_reward)
             print(f'Episode: {episode:>5d}, average reward: {average_reward:>4.1f}, current epsilon: {epsilon:>1.2f}, Min: {min_reward:>1.2f}, Max: {max_reward:>1.2f}')
 
-            if min_reward > MIN_REWARD or episode == EPISODES:
+            if average_reward > MIN_REWARD or episode == EPISODES: # Changed to average reward instead of minimum
                 agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
         if epsilon > MIN_EPSILON:

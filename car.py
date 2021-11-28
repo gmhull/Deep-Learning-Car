@@ -1,6 +1,7 @@
 import pyglet, math
 from pyglet.window import key
 import math
+import numpy as np
 
 import ctypes
 user32 = ctypes.windll.user32
@@ -10,8 +11,8 @@ class Car:
 
     def __init__(self, reward_gates, walls):
         # Car placement and size
-        self.x = 400
-        self.y = 100
+        self.x = 820
+        self.y = 335
         self.WIDTH = 25
         self.HEIGHT = 35
 
@@ -23,7 +24,7 @@ class Car:
         self.TURN_SPEED = 1.7
         self.ANGULAR_DRAG = 0.8
         self.MIN_SPEED = 2
-        self.ANGLE = -110
+        self.ANGLE = 90
         self.speed = 0
 
         # Movement control booleans
@@ -40,7 +41,7 @@ class Car:
 
         self.reward_gates = reward_gates
         self.walls = walls
-        self.current_gate = 20
+        self.current_gate = 12
         self.next_gate_angle = 0
 
         self.color = (0, 200, 255,
@@ -52,7 +53,7 @@ class Car:
         for i in range(-60, 61, 30):
             self.rays.append(Ray(angle=self.ANGLE+i, max_length=self.MAX_SIGHT_DISTANCE))
 
-        self.SPACE_STATE = self.get_ray_dists()
+        self.SPACE_STATE = self.get_current_state()
 
     def get_vertices(self):
         hypot = math.hypot(self.WIDTH/2, self.HEIGHT/2)
@@ -231,11 +232,11 @@ class Car:
         return False
 
     def reset(self):
-        self.x = 400
-        self.y = 100
+        self.x = 820
+        self.y = 335
         self.VEL_X, self.VEL_Y = 0, 0
         self.ANGULAR_VEL = 0
-        self.ANGLE = -110
+        self.ANGLE = np.random.randint(60,120)
         self.speed = 0
 
         self.FORWARD = False
@@ -246,7 +247,7 @@ class Car:
         self.alive = True
         self.lifetime = 0
         self.score = 0
-        self.current_gate = 20
+        self.current_gate = 12
         for gate in self.reward_gates:
             gate.active == True
 
@@ -368,3 +369,6 @@ class Ray:
                                     ('v2f', (car_x, car_y,
                                              end[0], end[1])),
                                     color)
+
+if __name__ =="__main__":
+    pass
